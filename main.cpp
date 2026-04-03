@@ -161,6 +161,10 @@ struct cacheConfig {
     char lru_char;     //'L' for LRU, anything else for FIFO
     std::string filename; //memory trace file
     int numLinesExp;
+    int tagsize;
+    int numLines;
+    int numSetsExp;
+    
 };
 
 bool isBlank(const string &s) {
@@ -182,16 +186,11 @@ void getNextLine(ifstream &f, string &out) {
 
     out = ""; // EOF
 }
-void setConfig() {
-
-}
-int main() {
-
-    cacheConfig cfg;
+void setConfig(cacheConfig& cfg) {
     ifstream configFile("../config.txt");
     if (!configFile.is_open()) {
         cout << "ERROR: config.txt failed to open\n";
-        return 1;
+        return;
     }
     std::string line;
     getline(configFile, line);
@@ -213,11 +212,11 @@ int main() {
 
     cout << "This is a rudimentary cache simulator." << endl;
 
-    int numLinesExp = cfg.cacheSizeExp - cfg.lineSizeExp;
+    cfg.numLinesExp = cfg.cacheSizeExp - cfg.lineSizeExp;
     //numLines = 2^numLinesExp
 
     if ((cfg.fullyAssoc=='y')||(cfg.fullyAssoc=='Y'))
-        cfg.setSizeExp=numLinesExp;
+        cfg.setSizeExp=cfg.numLinesExp;
     else
     {
         if ((cfg.directMapped=='y')||(cfg.directMapped=='Y'))
@@ -226,7 +225,7 @@ int main() {
             if ((cfg.setSizeExp>4)||(cfg.setSizeExp<1))
             {
                 cout << "Try again. It's your responsibility to enter numbers that make sense" << endl;
-                return 0;
+                return;
             }
         }
     }
@@ -234,12 +233,15 @@ int main() {
     if ((cfg.lru_char=='l')||(cfg.lru_char=='L'))
         lru=1;
 
-    int numSetsExp = numLinesExp - cfg.setSizeExp; //set field size
+    cfg.numSetsExp = cfg.numLinesExp - cfg.setSizeExp; //set field size
     //zero for fully associative
-    int tagsize = 32 - numSetsExp - cfg.lineSizeExp;
-    int numLines = pow(2, numLinesExp);
-    vector<vector<int> > cache(numLines);
-    for (int i=0; i<numLines; i++)
+    cfg.tagsize = 32 - cfg.numSetsExp - cfg.lineSizeExp;
+    cfg.numLines = pow(2, cfg.numLinesExp);
+
+}
+std::vector<int> runSimulation(cacheConfig cfg) {
+    vector<vector<int> > cache(cfg.numLines);
+    for (int i=0; i<cfg.numLines; i++)
     {
         //each line has three parameters: tag, set, access time
         //set all to -1 to start
@@ -258,16 +260,16 @@ int main() {
 
         getline(newfile, ls,' ');
         getline(newfile, addr, ' ');
-        int tag = getTag(addr, tagsize);
+        int tag = getTag(addr, cfg.tagsize);
         int set;
-        if (!numSetsExp)
+        if (!cfg.numSetsExp)
             //if numSetsExp=0, then number of sets = 1 (2^0=1), and it is fully associative
-            //there is only one set
-            set = 0;
+                //there is only one set
+                    set = 0;
         else
-            set = getSet(addr, tagsize, numSetsExp);
+            set = getSet(addr, cfg.tagsize, cfg.numSetsExp);
         //check for hit or miss
-        if (checkCache(set, cfg.setSizeExp, cache, tag, counter, lru))
+        if (checkCache(set, cfg.setSizeExp, cache, tag, counter, cfg.lru_char))
         {
             numhits++;
         }
@@ -275,8 +277,16 @@ int main() {
         getline(newfile, bytes);
         counter++;
     }
-    float hitrate = (float) numhits/(float) counter;
-    cout << "Hits " << numhits << " accesses " << counter << " hit rate " << hitrate << endl;
+    return {numhits, counter};
+}
+int main() {
+
+    cacheConfig cfg;
+    setConfig(cfg);
+    auto results = runSimulation(cfg);
+
+    float hitrate = (float) results[0]/(float) results[1];
+    cout << "Hits " << results[0] << " accesses " << results[1] << " hit rate " << hitrate << endl;
 
     return 0;
 }
