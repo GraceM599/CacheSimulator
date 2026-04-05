@@ -348,6 +348,9 @@ std::vector<int> runL2Simulation(cacheConfig cfg, cacheConfig cfg2) {
     }
     return {numhitsL1, numhitsL2, counter};
 }
+
+std::vector<int> runTimingSimulation(cacheConfig cfg, cacheConfig cfg2){
+}
 int main() {
 
     cout << "Welcome. This is a rudimentary cache simulator." << endl;
