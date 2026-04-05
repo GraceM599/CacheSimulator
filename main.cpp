@@ -167,6 +167,7 @@ struct cacheConfig {
     
 };
 
+
 bool isBlank(const string &s) {
     return all_of(s.begin(), s.end(), [](unsigned char c) {
         return isspace(c);
@@ -186,8 +187,8 @@ void getNextLine(ifstream &f, string &out) {
 
     out = ""; // EOF
 }
-void setConfig(cacheConfig& cfg) {
-    ifstream configFile("../config.txt");
+void setConfig(cacheConfig& cfg, std::string filename) {
+    ifstream configFile(filename);
     if (!configFile.is_open()) {
         cout << "ERROR: config.txt failed to open\n";
         return;
@@ -209,8 +210,6 @@ void setConfig(cacheConfig& cfg) {
     cfg.filename = line;
 
     int lru=0;
-
-    cout << "This is a rudimentary cache simulator." << endl;
 
     cfg.numLinesExp = cfg.cacheSizeExp - cfg.lineSizeExp;
     //numLines = 2^numLinesExp
@@ -239,8 +238,10 @@ void setConfig(cacheConfig& cfg) {
     cfg.numLines = pow(2, cfg.numLinesExp);
 
 }
-std::vector<int> runSimulation(cacheConfig cfg) {
+
+std::vector<int> runL1Simulation(cacheConfig cfg) {
     vector<vector<int> > cache(cfg.numLines);
+    //cache line -> {tag, set, access #}
     for (int i=0; i<cfg.numLines; i++)
     {
         //each line has three parameters: tag, set, access time
@@ -279,14 +280,94 @@ std::vector<int> runSimulation(cacheConfig cfg) {
     }
     return {numhits, counter};
 }
+
+std::vector<int> runL2Simulation(cacheConfig cfg, cacheConfig cfg2) {
+    vector<vector<int> > cache1(cfg.numLines);
+    vector<vector<int>> cache2(cfg2.numLines);
+    //cache line -> {tag, set, access #}
+    for (int i=0; i<cfg.numLines; i++)
+    {
+        //each line has three parameters: tag, set, access time
+        //set all to -1 to start
+        cache1[i] = vector<int>(2);
+        cache1[i][0]=-1; //tag
+        cache1[i][1]=-1; //access counter
+    }
+    for (int i = 0; i < cfg2.numLines; ++i){
+        cache2[i] = vector<int>(2);
+        cache2[i][0]=-1; //tag
+        cache2[i][1]=-1; //access counter
+    }
+
+
+    ifstream newfile(cfg.filename);
+    string ls, addr, bytes;
+    int counter = 0;
+    bool hit;
+    int numhitsL1 = 0;
+    int numhitsL2 = 0;
+    while (!newfile.eof())
+    {
+
+        getline(newfile, ls,' ');
+        getline(newfile, addr, ' ');
+        int tag = getTag(addr, cfg.tagsize);
+        int set;
+        int set2;
+        if (!cfg.numSetsExp)
+            //if numSetsExp=0, then number of sets = 1 (2^0=1), and it is fully associative
+                //there is only one set
+                    set = 0;
+        else
+            set = getSet(addr, cfg.tagsize, cfg.numSetsExp);
+        //check for hit or miss
+        if (checkCache(set, cfg.setSizeExp, cache1, tag, counter, cfg.lru_char))
+        {
+            numhitsL1++;
+        }
+        else{
+            int tag2 = getTag(addr, cfg2.tagsize);
+            //std::cout << "Checking second cache" << std::endl;
+            if (!cfg2.numSetsExp)
+
+                        set = 0;
+            else
+                set2 = getSet(addr, cfg2.tagsize, cfg2.numSetsExp);
+            //check for hit or miss
+            if (checkCache(set2, cfg2.setSizeExp, cache2, tag2, counter, cfg2.lru_char))
+            {
+                numhitsL2++;
+            }
+        }
+
+        getline(newfile, bytes);
+        counter++;
+    }
+    return {numhitsL1, numhitsL2, counter};
+}
 int main() {
 
+    cout << "Welcome. This is a rudimentary cache simulator." << endl;
+
     cacheConfig cfg;
-    setConfig(cfg);
-    auto results = runSimulation(cfg);
+    setConfig(cfg, "../config.txt");
+    cacheConfig cfg2;
+    setConfig(cfg2, "../config2.txt");
+    auto results = runL1Simulation(cfg);
 
     float hitrate = (float) results[0]/(float) results[1];
     cout << "Hits " << results[0] << " accesses " << results[1] << " hit rate " << hitrate << endl;
+
+    cout << "2 Level Cache -----\n";
+    results = runL2Simulation(cfg, cfg2);
+    float hitrateL1 = (float) (results[0])/(float) results[2];
+    float hitrateL2 = (float) (results[1])/(float) results[2];
+    float hitrateCombined = (float) (results[0]+results[1])/(float) results[2];
+    cout << "Total Hits: " << results[0] + results[1];
+    cout << " \nL1 hits: " << results[0] << " L2 hits: " << results[1];
+    cout << " \nhit rate L1: " << hitrateL1;
+    cout << " \nhit rate L2: " << hitrateL2;
+    cout << " \nhit rate combined: " << hitrateCombined;
 
     return 0;
 }
