@@ -202,6 +202,9 @@ void setConfig(cacheConfig& cfg, std::string filename) {
     cfg.fullyAssoc = line[0];
     getline(configFile, line);
     cfg.directMapped= line[0];
+    if(cfg.fullyAssoc == 'y' || cfg.fullyAssoc == 'Y'){
+        cfg.directMapped = 'n';
+    }
     getline(configFile, line);
     cfg.setSizeExp = stoi(line);
     getline(configFile, line);
@@ -330,7 +333,7 @@ std::vector<int> runL2Simulation(cacheConfig cfg, cacheConfig cfg2) {
             //std::cout << "Checking second cache" << std::endl;
             if (!cfg2.numSetsExp)
 
-                        set = 0;
+                        set2 = 0;
             else
                 set2 = getSet(addr, cfg2.tagsize, cfg2.numSetsExp);
             //check for hit or miss
