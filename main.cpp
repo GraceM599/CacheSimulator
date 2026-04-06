@@ -241,6 +241,15 @@ void setConfig(cacheConfig& cfg, std::string filename) {
     cfg.numLines = pow(2, cfg.numLinesExp);
 
 }
+int getCacheHitTime(cacheConfig cfg, int level) {
+    if (level == 1) {
+        return 1;
+    }
+    if (level == 2) {
+        return 5;
+    }
+    return 100;
+}
 
 std::vector<int> runL1Simulation(cacheConfig cfg) {
     vector<vector<int> > cache(cfg.numLines);
@@ -281,8 +290,10 @@ std::vector<int> runL1Simulation(cacheConfig cfg) {
         getline(newfile, bytes);
         counter++;
     }
-    return {numhits, counter};
+    int estTime = numhits*getCacheHitTime(cfg, 1) + (counter - numhits)*getCacheHitTime(cfg, 4);
+    return {numhits, counter, estTime};
 }
+
 
 std::vector<int> runL2Simulation(cacheConfig cfg, cacheConfig cfg2) {
     vector<vector<int> > cache1(cfg.numLines);
@@ -346,11 +357,12 @@ std::vector<int> runL2Simulation(cacheConfig cfg, cacheConfig cfg2) {
         getline(newfile, bytes);
         counter++;
     }
-    return {numhitsL1, numhitsL2, counter};
+    int estTime = numhitsL1*getCacheHitTime(cfg, 1) + numhitsL2*getCacheHitTime(cfg2, 2) + (counter - numhitsL1 - numhitsL2)*getCacheHitTime(cfg, 4);
+    return {numhitsL1, numhitsL2, counter, estTime};
 }
 
-std::vector<int> runTimingSimulation(cacheConfig cfg, cacheConfig cfg2){
-}
+// std::vector<int> runTimingSimulation(cacheConfig cfg, cacheConfig cfg2){
+// }
 int main() {
 
     cout << "Welcome. This is a rudimentary cache simulator." << endl;
@@ -362,9 +374,14 @@ int main() {
     auto results = runL1Simulation(cfg);
 
     float hitrate = (float) results[0]/(float) results[1];
-    cout << "Hits " << results[0] << " accesses " << results[1] << " hit rate " << hitrate << endl;
+    cout << "Accesses: " << results[1];
+    cout << "\n----- 1 Level Cache -----\n";
+    cout << "Cache hits: " << results[0];
+    cout << "\nHit rate: " << hitrate;
+    //not accurate its for comparison with L2 cache implementatoins
+    cout << "\nestimated time taken (s): " << results[2]/1000000.0f;
 
-    cout << "2 Level Cache -----\n";
+    cout << "\n----- 2 Level Cache -----\n";
     results = runL2Simulation(cfg, cfg2);
     float hitrateL1 = (float) (results[0])/(float) results[2];
     float hitrateL2 = (float) (results[1])/(float) results[2];
@@ -374,6 +391,7 @@ int main() {
     cout << " \nhit rate L1: " << hitrateL1;
     cout << " \nhit rate L2: " << hitrateL2;
     cout << " \nhit rate combined: " << hitrateCombined;
+    cout << "\nestimated time taken (s): " << results[3]/1000000.0f;
 
     return 0;
 }
