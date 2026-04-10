@@ -1,6 +1,6 @@
 config.txt layout
-line 1 - cacheSizeExp
-line 2 - lineSizeExp
+line 1 - cacheSizeExp  
+line 2 - lineSizeExp   
 line 3 - fullyAssoc (y/n)
 line 4 - directMapped (y/n)
 line 5 - setSizeExp 
